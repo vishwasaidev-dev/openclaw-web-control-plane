@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenClaw Control Plane</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --ink: #1f2937;
+        --muted: #667085;
+        --line: #d9dee8;
+        --accent: #2563eb;
+        --ok: #15803d;
+        --bad: #b91c1c;
+        --warn: #b45309;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      header {
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+      h1 { font-size: 17px; margin: 0; font-weight: 650; }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 22px;
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 18px;
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      section h2 {
+        margin: 0;
+        padding: 12px 14px;
+        font-size: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .content { padding: 14px; }
+      label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+      input, select, textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 9px 10px;
+        font: inherit;
+        background: #fff;
+        color: var(--ink);
+      }
+      textarea { min-height: 160px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      button {
+        border: 1px solid #1d4ed8;
+        background: var(--accent);
+        color: white;
+        border-radius: 6px;
+        padding: 9px 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #fff;
+        color: var(--ink);
+        border-color: var(--line);
+      }
+      .toolbar { display: flex; gap: 8px; align-items: center; }
+      .stack { display: grid; gap: 12px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; font-weight: 600; }
+      tr { cursor: pointer; }
+      tr:hover { background: #f8fafc; }
+      .pill { display: inline-flex; border-radius: 999px; padding: 2px 8px; font-size: 12px; border: 1px solid var(--line); }
+      .tool-grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; }
+      .tool-grid code { color: var(--muted); }
+      .compat-grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; margin: 10px 0 12px; }
+      .yes { color: var(--ok); font-weight: 650; }
+      .no { color: var(--bad); font-weight: 650; }
+      .node-card + .node-card { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+      .model-row { display: flex; gap: 8px; margin: 10px 0 4px; }
+      .model-row select { flex: 1; min-width: 0; }
+      .queued { color: var(--warn); }
+      .running { color: var(--accent); }
+      .complete { color: var(--ok); }
+      .failed { color: var(--bad); }
+      pre {
+        margin: 0;
+        padding: 12px;
+        background: #0f172a;
+        color: #e5e7eb;
+        border-radius: 6px;
+        overflow: auto;
+        max-height: 520px;
+        font-size: 12px;
+      }
+      @media (max-width: 860px) {
+        main { grid-template-columns: 1fr; padding: 14px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>OpenClaw Control Plane</h1>
+      <div class="toolbar">
+        <input id="token" type="password" value="dev-token" aria-label="Admin token" />
+        <button class="secondary" id="refresh">Refresh</button>
+      </div>
+    </header>
+    <main>
+      <div class="stack">
+        <section>
+          <h2>Create Python Job</h2>
+          <div class="content stack">
+            <div>
+              <label for="objective">Objective</label>
+              <input id="objective" value="Run a browser-created Python job" />
+            </div>
+            <div>
+              <label for="source">Python Source</label>
+              <textarea id="source">print("hello from the dashboard")</textarea>
+            </div>
+            <button id="create">Queue Job</button>
+          </div>
+        </section>
+        <section>
+          <h2>Nodes</h2>
+          <div class="content">
+            <div id="nodes">[]</div>
+          </div>
+        </section>
+      </div>
+      <div class="stack">
+        <section>
+          <h2>Jobs</h2>
+          <div class="content">
+            <table>
+              <thead><tr><th>Status</th><th>Objective</th><th>Runner</th><th>ID</th></tr></thead>
+              <tbody id="jobs"></tbody>
+            </table>
+          </div>
+        </section>
+        <section>
+          <h2>Selected Job</h2>
+          <div class="content">
+            <pre id="detail">{}</pre>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

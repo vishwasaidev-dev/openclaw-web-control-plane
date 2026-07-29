@@ -1,0 +1,8 @@
+{
+  "objective": "Run a tiny Python proof job through the local OpenClaw runner",
+  "capability": "python",
+  "payload": {
+    "source": "from pathlib import Path\nprint('hello from OpenClaw runner')\nPath('artifact.txt').write_text('persistent artifact example\\n', encoding='utf-8')\nprint('wrote artifact.txt')\n",
+    "timeout_seconds": 10
+  }
+}

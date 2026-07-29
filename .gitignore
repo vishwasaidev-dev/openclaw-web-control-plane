@@ -1,0 +1,6 @@
+data/control-plane.sqlite3
+data/control-plane.sqlite3-*
+data/artifacts/*
+runner/config.json
+__pycache__/
+*/__pycache__/

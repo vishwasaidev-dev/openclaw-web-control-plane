@@ -1,0 +1,45 @@
+{
+  "python-basic": {
+    "label": "Python jobs",
+    "capability": "python",
+    "required_tools": ["python3"],
+    "optional_tools": ["pip", "git", "rg", "curl"]
+  },
+  "node-web": {
+    "label": "Node/web app work",
+    "capability": "node",
+    "required_tools": ["node", "npm"],
+    "optional_tools": ["npx", "git", "curl"]
+  },
+  "browser-automation": {
+    "label": "Browser automation",
+    "capability": "browser",
+    "required_any_tools": [["google-chrome", "chromium"]],
+    "required_tools": ["node", "npx"],
+    "optional_tools": ["ffmpeg"]
+  },
+  "gpu-python": {
+    "label": "GPU Python / RunPod",
+    "capability": "gpu_python",
+    "required_tools": ["python3", "nvidia-smi"],
+    "optional_tools": ["pip", "git", "curl", "ffmpeg", "huggingface-cli"]
+  },
+  "media-generation": {
+    "label": "Media generation",
+    "capability": "media",
+    "required_tools": ["python3", "ffmpeg"],
+    "optional_tools": ["nvidia-smi", "pip", "git"]
+  },
+  "deployment-heroku": {
+    "label": "Heroku deployment",
+    "capability": "deploy_heroku",
+    "required_tools": ["git", "heroku"],
+    "optional_tools": ["curl", "node", "npm"]
+  },
+  "container-work": {
+    "label": "Container work",
+    "capability": "container",
+    "required_tools": ["docker"],
+    "optional_tools": ["git", "curl"]
+  }
+}

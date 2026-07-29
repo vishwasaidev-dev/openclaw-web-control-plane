@@ -1,0 +1,8 @@
+{
+  "objective": "Verify selected local model is passed from the control plane to the runner job",
+  "capability": "python",
+  "payload": {
+    "source": "import os\nprint('model id:', os.environ.get('OPENCLAW_SELECTED_MODEL_ID'))\nprint('model name:', os.environ.get('OPENCLAW_SELECTED_MODEL_NAME'))\nprint('model path:', os.environ.get('OPENCLAW_SELECTED_MODEL_PATH'))\nprint('model provider:', os.environ.get('OPENCLAW_SELECTED_MODEL_PROVIDER'))\n",
+    "timeout_seconds": 10
+  }
+}

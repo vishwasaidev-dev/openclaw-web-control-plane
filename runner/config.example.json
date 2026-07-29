@@ -1,0 +1,23 @@
+{
+  "default_model_id": "gemma-local",
+  "model_search_paths": [
+    "/workspace/models",
+    "/runpod-volume/models",
+    "/models"
+  ],
+  "models": [
+    {
+      "id": "gemma-local",
+      "name": "Gemma local",
+      "provider": "local",
+      "path": "/workspace/models/gemma"
+    },
+    {
+      "id": "gemma-hf",
+      "name": "Gemma via Hugging Face cache",
+      "provider": "huggingface",
+      "repo": "google/gemma-3-4b-it"
+    }
+  ],
+  "max_discovered_models": 80
+}
