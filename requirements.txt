@@ -1,0 +1,1 @@
+# Stdlib-only MVP. This file lets Heroku detect the Python app.
