@@ -2,6 +2,10 @@ const jobsEl = document.querySelector("#jobs");
 const detailEl = document.querySelector("#detail");
 const nodesEl = document.querySelector("#nodes");
 const tokenEl = document.querySelector("#token");
+const setupPanel = document.querySelector("#setupPanel");
+const setupStatusEl = document.querySelector("#setupStatus");
+const setupTokenEl = document.querySelector("#setupToken");
+const setupIpLockEl = document.querySelector("#setupIpLock");
 
 function headers() {
   return {
@@ -14,6 +18,32 @@ async function api(path, options = {}) {
   const response = await fetch(path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
   if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
   return response.json();
+}
+
+async function setupStatus() {
+  const status = await api("/api/setup/status", { headers: {} });
+  setupStatusEl.textContent = status.configured
+    ? `Configured. Your detected IP is ${status.client_ip}. IP restriction: ${status.ip_restricted ? "on" : "off"}.`
+    : `Not configured. Your detected IP is ${status.client_ip}. Choose a launch token before attaching runners.`;
+  setupPanel.style.display = status.configured ? "none" : "";
+  return status;
+}
+
+async function saveSetupToken() {
+  const token = setupTokenEl.value;
+  if (token.length < 16) {
+    alert("Use a token with at least 16 characters.");
+    return;
+  }
+  await api("/api/setup", {
+    method: "POST",
+    headers: {},
+    body: JSON.stringify({ token, allow_current_ip: setupIpLockEl.checked })
+  });
+  tokenEl.value = token;
+  setupTokenEl.value = "";
+  await setupStatus();
+  await refresh();
 }
 
 function fmtTime(ts) {
@@ -100,6 +130,13 @@ async function createJob() {
 
 document.querySelector("#refresh").addEventListener("click", () => refresh().catch(err => alert(err.message)));
 document.querySelector("#create").addEventListener("click", () => createJob().catch(err => alert(err.message)));
-refresh().catch(err => {
-  detailEl.textContent = err.message;
-});
+document.querySelector("#setupSave").addEventListener("click", () => saveSetupToken().catch(err => alert(err.message)));
+setupStatus()
+  .then(status => {
+    if (status.configured) {
+      return refresh();
+    }
+  })
+  .catch(err => {
+    setupStatusEl.textContent = err.message;
+  });

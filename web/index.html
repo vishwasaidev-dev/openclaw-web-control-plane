@@ -96,6 +96,10 @@
       .node-card + .node-card { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
       .model-row { display: flex; gap: 8px; margin: 10px 0 4px; }
       .model-row select { flex: 1; min-width: 0; }
+      .setup { grid-column: 1 / -1; }
+      .setup-grid { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+      .check-row { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
+      .check-row input { width: auto; }
       .queued { color: var(--warn); }
       .running { color: var(--accent); }
       .complete { color: var(--ok); }
@@ -119,11 +123,28 @@
     <header>
       <h1>OpenClaw Control Plane</h1>
       <div class="toolbar">
-        <input id="token" type="password" value="dev-token" aria-label="Admin token" />
+        <input id="token" type="password" placeholder="Admin token" aria-label="Admin token" />
         <button class="secondary" id="refresh">Refresh</button>
       </div>
     </header>
     <main>
+      <section class="setup" id="setupPanel">
+        <h2>First-Run Setup</h2>
+        <div class="content stack">
+          <div id="setupStatus">Checking setup status...</div>
+          <div class="setup-grid">
+            <div>
+              <label for="setupToken">Launch admin token</label>
+              <input id="setupToken" type="password" placeholder="Type a new token for this launch" />
+            </div>
+            <button id="setupSave">Set Token</button>
+          </div>
+          <label class="check-row">
+            <input id="setupIpLock" type="checkbox" checked />
+            Lock this app to my current IP after setup
+          </label>
+        </div>
+      </section>
       <div class="stack">
         <section>
           <h2>Create Python Job</h2>

@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
+import hmac
 import json
 import os
 import re
+import secrets
 import sqlite3
 import time
 import uuid
@@ -33,6 +36,17 @@ def now() -> float:
 
 def json_dumps(value: object) -> bytes:
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def hash_token(token: str, salt: str | None = None) -> dict[str, str]:
+    salt = salt or secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", token.encode("utf-8"), bytes.fromhex(salt), 200_000).hex()
+    return {"salt": salt, "hash": digest}
+
+
+def verify_token(token: str, salt: str, expected_hash: str) -> bool:
+    candidate = hash_token(token, salt)["hash"]
+    return hmac.compare_digest(candidate, expected_hash)
 
 
 def load_requirements() -> dict:
@@ -120,6 +134,11 @@ class Store:
                     selected_model_id text,
                     updated_at real not null
                 );
+                create table if not exists settings (
+                    key text primary key,
+                    value_json text not null,
+                    updated_at real not null
+                );
                 """
             )
             columns = {row["name"] for row in conn.execute("pragma table_info(nodes)").fetchall()}
@@ -142,6 +161,55 @@ class Store:
                 (job_id, ts, "job queued"),
             )
         return self.get_job(job_id, include_events=True)
+
+    def get_setting(self, key: str) -> object | None:
+        with self.connect() as conn:
+            row = conn.execute("select value_json from settings where key = ?", (key,)).fetchone()
+        return json.loads(row["value_json"]) if row else None
+
+    def set_setting(self, key: str, value: object) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                insert into settings (key, value_json, updated_at)
+                values (?, ?, ?)
+                on conflict(key) do update set
+                    value_json=excluded.value_json,
+                    updated_at=excluded.updated_at
+                """,
+                (key, json.dumps(value), now()),
+            )
+
+    def token_configured(self) -> bool:
+        return bool(os.environ.get("OPENCLAW_ADMIN_TOKEN") or self.get_setting("admin_token"))
+
+    def set_admin_token(self, token: str) -> None:
+        self.set_setting("admin_token", hash_token(token))
+
+    def verify_admin_token(self, token: str) -> bool:
+        env_token = os.environ.get("OPENCLAW_ADMIN_TOKEN")
+        if env_token:
+            return hmac.compare_digest(token, env_token)
+        stored = self.get_setting("admin_token")
+        if not isinstance(stored, dict):
+            return False
+        salt = str(stored.get("salt") or "")
+        expected = str(stored.get("hash") or "")
+        return bool(salt and expected and verify_token(token, salt, expected))
+
+    def allowed_ips(self) -> list[str]:
+        env_ips = [item.strip() for item in os.environ.get("OPENCLAW_ALLOWED_IPS", "").split(",") if item.strip()]
+        stored = self.get_setting("allowed_ips")
+        stored_ips = [str(item).strip() for item in stored] if isinstance(stored, list) else []
+        return [*env_ips, *stored_ips]
+
+    def add_allowed_ip(self, ip: str) -> None:
+        values = self.allowed_ips()
+        if ip and ip not in values:
+            values.append(ip)
+        env_values = [item.strip() for item in os.environ.get("OPENCLAW_ALLOWED_IPS", "").split(",") if item.strip()]
+        dynamic_values = [item for item in values if item not in env_values]
+        self.set_setting("allowed_ips", dynamic_values)
 
     def list_jobs(self) -> list[dict]:
         with self.connect() as conn:
@@ -344,6 +412,15 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/health":
             self.send_json({"status": "ok", "service": "openclaw-control-plane"})
             return
+        if parsed.path == "/api/setup/status":
+            if not self.require_ip_allowed():
+                return
+            self.send_json({
+                "configured": self.store.token_configured(),
+                "client_ip": self.client_ip(),
+                "ip_restricted": bool(self.store.allowed_ips()),
+            })
+            return
         if parsed.path == "/":
             self.send_file(WEB_DIR / "index.html", "text/html; charset=utf-8")
             return
@@ -389,6 +466,26 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/api/setup":
+            if not self.require_ip_allowed():
+                return
+            if self.store.token_configured() and not self.require_auth():
+                return
+            data = self.read_json()
+            token = str(data.get("token") or "")
+            if len(token) < 16:
+                self.send_error_json(HTTPStatus.BAD_REQUEST, "token must be at least 16 characters")
+                return
+            self.store.set_admin_token(token)
+            if data.get("allow_current_ip"):
+                self.store.add_allowed_ip(self.client_ip())
+            self.send_json({
+                "ok": True,
+                "configured": True,
+                "client_ip": self.client_ip(),
+                "ip_restricted": bool(self.store.allowed_ips()),
+            })
+            return
         if parsed.path == "/mcp":
             self.handle_mcp()
             return
@@ -509,12 +606,33 @@ class Handler(BaseHTTPRequestHandler):
         return value
 
     def require_auth(self) -> bool:
-        if not self.token:
-            return True
+        if not self.require_ip_allowed():
+            return False
+        if not self.store.token_configured():
+            self.send_error_json(HTTPStatus.PRECONDITION_REQUIRED, "setup required")
+            return False
         expected = f"Bearer {self.token}"
-        if self.headers.get("Authorization") == expected:
+        header = self.headers.get("Authorization") or ""
+        token = header.removeprefix("Bearer ").strip() if header.startswith("Bearer ") else ""
+        if token and self.store.verify_admin_token(token):
             return True
         self.send_error_json(HTTPStatus.UNAUTHORIZED, "unauthorized")
+        return False
+
+    def client_ip(self) -> str:
+        forwarded = self.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",", 1)[0].strip()
+        return self.client_address[0]
+
+    def require_ip_allowed(self) -> bool:
+        allowed = self.store.allowed_ips()
+        if not allowed:
+            return True
+        ip = self.client_ip()
+        if ip in allowed:
+            return True
+        self.send_error_json(HTTPStatus.FORBIDDEN, "ip not allowed")
         return False
 
     def send_json(self, value: object, status: HTTPStatus = HTTPStatus.OK) -> None:
@@ -552,7 +670,7 @@ def main() -> int:
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     server.store = Store(Path(args.data_dir))  # type: ignore[attr-defined]
-    server.admin_token = os.environ.get("OPENCLAW_ADMIN_TOKEN", "dev-token")  # type: ignore[attr-defined]
+    server.admin_token = os.environ.get("OPENCLAW_ADMIN_TOKEN", "")  # type: ignore[attr-defined]
     print(f"OpenClaw control plane listening on http://{args.host}:{args.port}")
     server.serve_forever()
     return 0

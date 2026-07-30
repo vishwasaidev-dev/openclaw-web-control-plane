@@ -18,7 +18,7 @@ coordination instead of becoming a general remote shell.
 
 ```bash
 cd apps/openclaw-web-control-plane
-OPENCLAW_ADMIN_TOKEN=dev-token python3 server/control_plane.py --host 127.0.0.1 --port 8788
+python3 server/control_plane.py --host 127.0.0.1 --port 8788
 ```
 
 In another terminal:
@@ -39,9 +39,15 @@ curl -fsS http://127.0.0.1:8788/api/jobs \
 
 Open the dashboard at `http://127.0.0.1:8788/`.
 
+On first launch, type a temporary admin token into the setup panel. The server
+stores only a salted hash. In production, set `OPENCLAW_ALLOWED_IPS` to your IP
+or CIDR range before attaching runners.
+
 ## Current Capabilities
 
 - Persistent SQLite job state
+- First-run admin token setup from the web UI
+- Optional IP allowlist via `OPENCLAW_ALLOWED_IPS`
 - Runner registration and heartbeat
 - Runner machine inventory for common tool availability
 - Runner local model inventory and selected-model routing

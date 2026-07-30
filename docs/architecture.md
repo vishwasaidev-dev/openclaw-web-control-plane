@@ -23,6 +23,14 @@ depend on Drive for its core queue.
 The cloud does not run arbitrary shell commands on a laptop. It queues capability
 requests. Runners decide what capabilities they support.
 
+The deployed app does not require storing `OPENCLAW_ADMIN_TOKEN` as a Heroku
+secret. When no env token is present, the dashboard exposes a first-run setup
+panel. The typed launch token is hashed with PBKDF2 and stored in control-plane
+state.
+
+For production use, set `OPENCLAW_ALLOWED_IPS` before first setup so only your
+IP can reach setup/API routes.
+
 MVP capabilities:
 
 - `python`: execute a bounded Python file in a temporary working directory.
